@@ -1,0 +1,7 @@
+name = "roproxy-lite"
+main = "src/index.ts"
+compatibility_date = "2024-11-12"
+
+[vars]
+TIMEOUT = "5"
+RETRIES = "5"
