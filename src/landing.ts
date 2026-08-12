@@ -284,12 +284,15 @@ export function renderLandingPage(currentUrl: string): string {
     }
 
     .copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
       background: linear-gradient(135deg, var(--primary-cyan), #0284c7);
       color: #0f172a;
       font-weight: 600;
       border: none;
       border-radius: 0.6rem;
-      padding: 0.5rem 1rem;
+      padding: 0.55rem 1rem;
       cursor: pointer;
       font-size: 0.85rem;
       transition: all 0.2s ease;
@@ -297,7 +300,7 @@ export function renderLandingPage(currentUrl: string): string {
     }
 
     .copy-btn:hover {
-      opacity: 0.9;
+      opacity: 0.95;
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
     }
@@ -345,7 +348,6 @@ export function renderLandingPage(currentUrl: string): string {
       align-items: center;
       justify-content: center;
       color: var(--primary-cyan);
-      font-size: 1.25rem;
       margin-bottom: 1.25rem;
     }
 
@@ -451,7 +453,9 @@ export function renderLandingPage(currentUrl: string): string {
 
   <header>
     <a href="#" class="logo-container">
-      <div class="logo-badge">R</div>
+      <div class="logo-badge">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+      </div>
       <span>RoProxy Lite</span>
     </a>
     <div class="status-pill">
@@ -462,7 +466,10 @@ export function renderLandingPage(currentUrl: string): string {
 
   <main>
     <section class="hero">
-      <div class="hero-tag">⚡ Cloudflare Workers Edge Network</div>
+      <div class="hero-tag">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        Cloudflare Workers Edge Network
+      </div>
       <h1 class="hero-title">Free, Serverless <span>Roblox API</span> Reverse Proxy</h1>
       <p class="hero-subtitle">High-speed, zero-latency proxy for Roblox developers. Bypass Roblox HttpService domain restrictions seamlessly.</p>
     </section>
@@ -471,7 +478,7 @@ export function renderLandingPage(currentUrl: string): string {
     <section class="converter-card">
       <div class="converter-label">
         <span>Try URL Converter</span>
-        <span style="font-size: 0.8rem; color: var(--primary-cyan)">Live Host: ${urlObj.hostname}</span>
+        <span style="font-size: 0.8rem; color: var(--primary-cyan)">Host: ${urlObj.hostname}</span>
       </div>
       <div class="input-group">
         <input 
@@ -483,7 +490,10 @@ export function renderLandingPage(currentUrl: string): string {
         />
         <div class="output-box">
           <span id="convertedUrlText" class="output-text">${hostUrl}/games/v1/games/130582315</span>
-          <button id="copyBtn" class="copy-btn">Copy URL</button>
+          <button id="copyBtn" class="copy-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy URL</span>
+          </button>
         </div>
       </div>
     </section>
@@ -491,19 +501,25 @@ export function renderLandingPage(currentUrl: string): string {
     <!-- Features Grid -->
     <section class="features-grid">
       <div class="feature-card">
-        <div class="feature-icon">⚡</div>
+        <div class="feature-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        </div>
         <h3 class="feature-title">Global Edge Speed</h3>
         <p class="feature-desc">Powered by Cloudflare Workers isolates running in 300+ edge locations worldwide for minimal latency.</p>
       </div>
 
       <div class="feature-card">
-        <div class="feature-icon">🛡️</div>
+        <div class="feature-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+        </div>
         <h3 class="feature-title">Unrestricted Subdomains</h3>
         <p class="feature-desc">Access any valid Roblox subdomain (games, users, economy, presence, inventory, catalog, groups).</p>
       </div>
 
       <div class="feature-card">
-        <div class="feature-icon">🔒</div>
+        <div class="feature-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        </div>
         <h3 class="feature-title">Secure & Clean</h3>
         <p class="feature-desc">Built-in SSRF protection, optional PROXYKEY auth header support, and strict header sanitization.</p>
       </div>
@@ -549,7 +565,6 @@ print(data)</code></pre>
 
       try {
         const parsed = new URL(val);
-        // Extract subdomain from roblox.com (e.g. games.roblox.com -> games)
         const hostParts = parsed.hostname.split('.');
         let subdomain = hostParts[0];
         
@@ -564,9 +579,9 @@ print(data)</code></pre>
 
     copyBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(output.textContent);
-      copyBtn.textContent = 'Copied! ✓';
+      copyBtn.innerHTML = \`<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> <span>Copied!</span>\`;
       setTimeout(() => {
-        copyBtn.textContent = 'Copy URL';
+        copyBtn.innerHTML = \`<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> <span>Copy URL</span>\`;
       }, 2000);
     });
 
