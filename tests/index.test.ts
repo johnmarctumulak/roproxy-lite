@@ -40,6 +40,25 @@ describe("RoProxy Lite Cloudflare Worker", () => {
     expect((options.headers as Headers).get("User-Agent")).toBe("RoProxy");
   });
 
+  it("1b. Forward subdomain-style request (games.roproxy-lite.workers.dev/v1/games/12345) to target Roblox API", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ id: 1, name: "Test Game" }] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    globalThis.fetch = mockFetch;
+
+    const request = new Request("http://games.roproxy-lite.workers.dev/v1/games/12345");
+    const response = await worker.fetch(request, {}, dummyCtx);
+
+    expect(response.status).toBe(200);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [targetUrl, options] = mockFetch.mock.calls[0];
+    expect(targetUrl).toBe("https://games.roblox.com/v1/games/12345");
+    expect(options.method).toBe("GET");
+  });
+
   it("2. Return 200 HTML landing page for root path / and 400 for invalid subdomain path", async () => {
     const req1 = new Request("http://localhost/");
     const res1 = await worker.fetch(req1, {}, dummyCtx);

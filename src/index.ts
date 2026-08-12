@@ -9,18 +9,6 @@ export interface Env {
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
-    const rawPath = url.pathname.slice(1);
-
-    // Serve custom landing page at root path /
-    if (url.pathname === "/" || url.pathname === "") {
-      return new Response(renderLandingPage(request.url), {
-        status: 200,
-        headers: {
-          "Content-Type": "text/html; charset=utf-8",
-          "Access-Control-Allow-Origin": "*",
-        },
-      });
-    }
 
     // Handle CORS preflight request (OPTIONS)
     if (request.method === "OPTIONS") {
@@ -50,21 +38,54 @@ export default {
       }
     }
 
-    // 2. URL parsing & routing
-    // Extract path after leading slash e.g., /games/v1/games/12345
-    const firstSlashIndex = rawPath.indexOf("/");
-    if (firstSlashIndex === -1 || firstSlashIndex === 0) {
-      return new Response("URL format invalid.", {
-        status: 400,
-        headers: {
-          "Content-Type": "text/plain",
-          "Access-Control-Allow-Origin": "*",
-        },
-      });
+    // 2. URL parsing & routing (Supports Subdomain & Path-based routing)
+    let subdomain = "";
+    let targetPath = "";
+    let isSubdomainRouting = false;
+
+    // Check if request uses Subdomain Routing (e.g. games.roproxy-lite.workers.dev/v1/games/123)
+    const hostParts = url.hostname.split(".");
+    if (hostParts.length > 2) {
+      const candidateSubdomain = hostParts[0].toLowerCase();
+      // Exclude main worker names or www from being treated as a Roblox subdomain
+      if (
+        /^[a-zA-Z0-9-]+$/i.test(candidateSubdomain) &&
+        !["roproxy-lite", "roproxy", "www", "app"].includes(candidateSubdomain)
+      ) {
+        subdomain = candidateSubdomain;
+        targetPath = url.pathname.slice(1); // Path after leading /
+        isSubdomainRouting = true;
+      }
     }
 
-    const subdomain = rawPath.substring(0, firstSlashIndex);
-    const targetPath = rawPath.substring(firstSlashIndex + 1);
+    // Fallback to Path-based Routing (e.g. roproxy-lite.workers.dev/games/v1/games/123)
+    if (!isSubdomainRouting) {
+      // Serve landing page at root path /
+      if (url.pathname === "/" || url.pathname === "") {
+        return new Response(renderLandingPage(request.url), {
+          status: 200,
+          headers: {
+            "Content-Type": "text/html; charset=utf-8",
+            "Access-Control-Allow-Origin": "*",
+          },
+        });
+      }
+
+      const rawPath = url.pathname.slice(1);
+      const firstSlashIndex = rawPath.indexOf("/");
+      if (firstSlashIndex === -1 || firstSlashIndex === 0) {
+        return new Response("URL format invalid.", {
+          status: 400,
+          headers: {
+            "Content-Type": "text/plain",
+            "Access-Control-Allow-Origin": "*",
+          },
+        });
+      }
+
+      subdomain = rawPath.substring(0, firstSlashIndex);
+      targetPath = rawPath.substring(firstSlashIndex + 1);
+    }
 
     // Validate subdomain format (allow only valid Roblox subdomains to prevent SSRF / domain injection)
     if (!/^[a-zA-Z0-9-]+$/i.test(subdomain)) {
