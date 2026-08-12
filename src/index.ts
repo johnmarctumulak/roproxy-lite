@@ -1,3 +1,5 @@
+import { renderLandingPage } from "./landing";
+
 export interface Env {
   KEY?: string;
   TIMEOUT?: string;
@@ -6,6 +8,20 @@ export interface Env {
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+    const rawPath = url.pathname.slice(1);
+
+    // Serve custom landing page at root path /
+    if (url.pathname === "/" || url.pathname === "") {
+      return new Response(renderLandingPage(request.url), {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    }
+
     // Handle CORS preflight request (OPTIONS)
     if (request.method === "OPTIONS") {
       return new Response(null, {
@@ -36,9 +52,6 @@ export default {
 
     // 2. URL parsing & routing
     // Extract path after leading slash e.g., /games/v1/games/12345
-    const url = new URL(request.url);
-    const rawPath = url.pathname.slice(1);
-
     const firstSlashIndex = rawPath.indexOf("/");
     if (firstSlashIndex === -1 || firstSlashIndex === 0) {
       return new Response("URL format invalid.", {

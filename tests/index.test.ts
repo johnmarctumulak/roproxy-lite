@@ -40,11 +40,12 @@ describe("RoProxy Lite Cloudflare Worker", () => {
     expect((options.headers as Headers).get("User-Agent")).toBe("RoProxy");
   });
 
-  it("2. Return 400 URL format invalid when subdomain or path is missing", async () => {
+  it("2. Return 200 HTML landing page for root path / and 400 for invalid subdomain path", async () => {
     const req1 = new Request("http://localhost/");
     const res1 = await worker.fetch(req1, {}, dummyCtx);
-    expect(res1.status).toBe(400);
-    expect(await res1.text()).toBe("URL format invalid.");
+    expect(res1.status).toBe(200);
+    expect(res1.headers.get("Content-Type")).toContain("text/html");
+    expect(await res1.text()).toContain("RoProxy Lite");
 
     const req2 = new Request("http://localhost/games");
     const res2 = await worker.fetch(req2, {}, dummyCtx);
