@@ -68,8 +68,6 @@ roproxy-lite/
 ├── tsconfig.json               # TypeScript compiler configuration
 ├── wrangler.toml               # Cloudflare Worker configuration & environment variables
 ├── README.md                   # Project documentation
-├── main.go                     # Legacy Go server source (kept for reference)
-├── go.mod                      # Legacy Go module definition
 └── LICENSE                     # MIT License
 ```
 
