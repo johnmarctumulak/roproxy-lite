@@ -5,3 +5,8 @@ compatibility_date = "2024-11-12"
 [vars]
 TIMEOUT = "5"
 RETRIES = "5"
+
+[[kv_namespaces]]
+binding = "STATS_KV"
+id = "610f88d288f449b7b1de8d2dd94ecf98"
+
