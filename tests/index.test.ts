@@ -219,4 +219,41 @@ describe("RoProxy Lite Cloudflare Worker", () => {
     expect(response.status).toBe(500);
     expect(await response.text()).toBe("Proxy failed to connect. Please try again.");
   });
+
+  it("13. Stream POST request body directly when RETRIES=1 with duplex: half", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(new Response("OK", { status: 200 }));
+    globalThis.fetch = mockFetch;
+
+    const env: Env = { RETRIES: "1" };
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("test stream data"));
+        controller.close();
+      },
+    });
+
+    const request = new Request("http://localhost/users/v1/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: stream,
+      duplex: "half",
+    } as RequestInit & { duplex?: string });
+
+    const response = await worker.fetch(request, env, dummyCtx);
+    expect(response.status).toBe(200);
+
+    const options = mockFetch.mock.calls[0][1];
+    expect(options.duplex).toBe("half");
+  });
+
+  it("14. Return /api/stats JSON telemetry endpoint", async () => {
+    const request = new Request("http://localhost/api/stats");
+    const response = await worker.fetch(request, {}, dummyCtx);
+
+    expect(response.status).toBe(200);
+    const data = (await response.json()) as { status: string; total_requests: number };
+    expect(data.status).toBe("Operational");
+    expect(typeof data.total_requests).toBe("number");
+  });
 });
+

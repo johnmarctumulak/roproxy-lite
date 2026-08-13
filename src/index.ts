@@ -38,7 +38,6 @@ export default {
     }
 
     // 1. Authentication Check
-    // Matches Go code: if KEY env var is set, PROXYKEY header must match KEY value.
     if (env.KEY && env.KEY.trim() !== "") {
       const proxyKeyHeader = request.headers.get("PROXYKEY");
       if (proxyKeyHeader !== env.KEY) {
@@ -67,7 +66,7 @@ export default {
         !["roproxy-lite", "roproxy", "www", "app"].includes(candidateSubdomain)
       ) {
         subdomain = candidateSubdomain;
-        targetPath = url.pathname.slice(1); // Path after leading /
+        targetPath = url.pathname.slice(1);
         isSubdomainRouting = true;
       }
     }
@@ -102,7 +101,7 @@ export default {
       targetPath = rawPath.substring(firstSlashIndex + 1);
     }
 
-    // Validate subdomain format (allow only valid Roblox subdomains to prevent SSRF / domain injection)
+    // Validate subdomain format (allow only valid Roblox subdomains to prevent SSRF)
     if (!/^[a-zA-Z0-9-]+$/i.test(subdomain)) {
       return new Response("URL format invalid.", {
         status: 400,
@@ -131,10 +130,19 @@ export default {
   },
 };
 
-// Internal memory stats tracker state
+// Internal V8 Isolate memory stats tracker state
 let memoryRequestCount = 0;
 let memoryTotalResponseTimeMs = 0;
 let memoryBandwidthBytes = 0;
+
+export function getMinuteBucketKey(date: Date = new Date()): string {
+  const yyyy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(date.getUTCDate()).padStart(2, "0");
+  const hh = String(date.getUTCHours()).padStart(2, "0");
+  const min = String(date.getUTCMinutes()).padStart(2, "0");
+  return `stats:min:${yyyy}${mm}${dd}${hh}${min}`;
+}
 
 function recordRequestMetrics(
   durationMs: number,
@@ -155,26 +163,34 @@ function recordRequestMetrics(
   }
   memoryBandwidthBytes += bytes;
 
-  // Persist real telemetry counters to Cloudflare KV Namespace if bound
+  // Persist metrics into minute-sharded KV buckets using 24h expirationTtl
   if (env?.STATS_KV && ctx) {
     ctx.waitUntil(
       (async () => {
         try {
-          const [currentReqStr, currentBwStr, currentDurStr] = await Promise.all([
-            env.STATS_KV!.get("stats:requests"),
-            env.STATS_KV!.get("stats:bandwidth"),
-            env.STATS_KV!.get("stats:duration"),
-          ]);
+          const bucketKey = getMinuteBucketKey();
+          const currentDataStr = await env.STATS_KV!.get(bucketKey);
+          let reqs = 0;
+          let bw = 0;
+          let dur = 0;
 
-          const reqCount = (parseInt(currentReqStr || "0", 10) || 0) + 1;
-          const bwCount = (parseInt(currentBwStr || "0", 10) || 0) + bytes;
-          const durCount = (parseInt(currentDurStr || "0", 10) || 0) + durationMs;
+          if (currentDataStr) {
+            try {
+              const parsed = JSON.parse(currentDataStr);
+              reqs = parsed.r || 0;
+              bw = parsed.b || 0;
+              dur = parsed.d || 0;
+            } catch {}
+          }
 
-          await Promise.all([
-            env.STATS_KV!.put("stats:requests", reqCount.toString()),
-            env.STATS_KV!.put("stats:bandwidth", bwCount.toString()),
-            env.STATS_KV!.put("stats:duration", durCount.toString()),
-          ]);
+          const updatedData = JSON.stringify({
+            r: reqs + 1,
+            b: bw + bytes,
+            d: dur + durationMs,
+          });
+
+          // 86400s = 24 hours TTL for automatic cleanup
+          await env.STATS_KV!.put(bucketKey, updatedData, { expirationTtl: 86400 });
         } catch {}
       })()
     );
@@ -186,18 +202,33 @@ export async function getLiveStats(env?: Env) {
   let totalBandwidthBytes = memoryBandwidthBytes;
   let totalDurationMs = memoryTotalResponseTimeMs;
 
-  // Read persistent real stats from Cloudflare KV if bound
+  // Aggregate recent minute-sharded KV buckets if bound
   if (env?.STATS_KV) {
     try {
-      const [kvReqStr, kvBwStr, kvDurStr] = await Promise.all([
-        env.STATS_KV.get("stats:requests"),
-        env.STATS_KV.get("stats:bandwidth"),
-        env.STATS_KV.get("stats:duration"),
-      ]);
+      const list = await env.STATS_KV.list({ prefix: "stats:min:", limit: 60 });
+      if (list.keys.length > 0) {
+        let kvReqs = 0;
+        let kvBw = 0;
+        let kvDur = 0;
 
-      if (kvReqStr) totalRequests = parseInt(kvReqStr, 10) || memoryRequestCount;
-      if (kvBwStr) totalBandwidthBytes = parseInt(kvBwStr, 10) || memoryBandwidthBytes;
-      if (kvDurStr) totalDurationMs = parseInt(kvDurStr, 10) || memoryTotalResponseTimeMs;
+        const values = await Promise.all(list.keys.map((k) => env.STATS_KV!.get(k.name)));
+        for (const val of values) {
+          if (val) {
+            try {
+              const parsed = JSON.parse(val);
+              kvReqs += parsed.r || 0;
+              kvBw += parsed.b || 0;
+              kvDur += parsed.d || 0;
+            } catch {}
+          }
+        }
+
+        if (kvReqs > 0) {
+          totalRequests = kvReqs;
+          totalBandwidthBytes = kvBw;
+          totalDurationMs = kvDur;
+        }
+      }
     } catch {}
   }
 
@@ -246,9 +277,10 @@ async function makeRequest(
   const method = incomingRequest.method;
   const hasBody = !["GET", "HEAD"].includes(method.toUpperCase());
 
-  // Buffer request body if body exists and retries > 1, so it can be re-sent on retry
+  // Buffer ArrayBuffer ONLY when maxRetries > 1 to preserve replayability across retries.
+  // When maxRetries === 1, stream incomingRequest.body directly.
   let bodyBuffer: ArrayBuffer | null = null;
-  if (hasBody) {
+  if (hasBody && maxRetries > 1) {
     try {
       bodyBuffer = await incomingRequest.arrayBuffer();
     } catch {
@@ -261,16 +293,36 @@ async function makeRequest(
     const timeoutId = setTimeout(() => controller.abort(), timeoutSeconds * 1000);
 
     try {
-      const fetchBody = hasBody ? bodyBuffer : null;
-      const outboundResponse = await fetch(targetUrl, {
+      const fetchBody: BodyInit | null = hasBody
+        ? maxRetries > 1
+          ? bodyBuffer
+          : incomingRequest.body
+        : null;
+
+      const fetchOptions: RequestInit & { duplex?: string } = {
         method: method,
         headers: forwardHeaders,
         body: fetchBody,
         signal: controller.signal,
         redirect: "manual",
-      });
+      };
+
+      // When streaming a ReadableStream body in Fetch API, duplex: "half" is required
+      if (fetchBody && typeof (fetchBody as ReadableStream).getReader === "function") {
+        fetchOptions.duplex = "half";
+      }
+
+      const outboundResponse = await fetch(targetUrl, fetchOptions);
 
       clearTimeout(timeoutId);
+
+      // Retry only on server/gateway errors (502 Bad Gateway, 503 Service Unavailable, 504 Gateway Timeout)
+      const isRetryableStatus = [502, 503, 504].includes(outboundResponse.status);
+      if (isRetryableStatus && attempt < maxRetries) {
+        const backoffMs = Math.min(100 * Math.pow(2, attempt - 1) + Math.random() * 50, 1000);
+        await new Promise((res) => setTimeout(res, backoffMs));
+        continue;
+      }
 
       // Create new response headers to modify CORS headers safely
       const responseHeaders = new Headers(outboundResponse.headers);
@@ -292,7 +344,11 @@ async function makeRequest(
       });
     } catch (err) {
       clearTimeout(timeoutId);
-      if (attempt >= maxRetries) {
+      if (attempt < maxRetries) {
+        // Exponential backoff with jitter on network/timeout failure
+        const backoffMs = Math.min(100 * Math.pow(2, attempt - 1) + Math.random() * 50, 1000);
+        await new Promise((res) => setTimeout(res, backoffMs));
+      } else {
         return new Response("Proxy failed to connect. Please try again.", {
           status: 500,
           headers: {
